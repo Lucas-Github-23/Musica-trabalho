@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Visualizador de Áudio Teste</title>
+  <title>Visualisador de audio Teste</title>
   <style>
     body {
       margin: 0;
@@ -32,20 +32,34 @@
     
     #startButton {
       position: absolute;
-      padding: 15px 30px;
+      width: 60px;
+      height: 60px;
       background-color: #ff4dd2;
-      color: white;
       border: none;
-      border-radius: 30px;
-      font-size: 18px;
+      border-radius: 50%;
       cursor: pointer;
       z-index: 10;
+      box-shadow: 0 0 20px #ff4dd2;
       transition: all 0.3s ease;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    #startButton::before {
+      content: "";
+      width: 0;
+      height: 0;
+      border-top: 15px solid transparent;
+      border-left: 25px solid white;
+      border-bottom: 15px solid transparent;
+      margin-left: 5px;
     }
     
     #startButton:hover {
       background-color: #ff66d9;
-      transform: scale(1.05);
+      transform: scale(1.1);
+      box-shadow: 0 0 30px #ff4dd2;
     }
     
     .hidden {
@@ -56,7 +70,7 @@
 <body>
   <canvas id="audioCanvas" class="hidden"></canvas>
   <audio id="audioPlayer" src="audio.mp3" loop></audio>
-  <button id="startButton">INICIAR VISUALIZADOR</button>
+  <button id="startButton" title="Play"></button>
 
   <script>
     const canvas = document.getElementById('audioCanvas');
@@ -75,13 +89,13 @@
     
     // Configuração do Audio Context
     let audioContext, analyser, dataArray;
+    let cdRotation = 0;
+    const cdSize = 120; // Tamanho do CD
     
     startButton.addEventListener('click', () => {
-      // Esconde o botão e mostra o canvas
       startButton.classList.add('hidden');
       canvas.classList.remove('hidden');
       
-      // Inicia o áudio
       audio.play().then(() => {
         if (!audioContext) {
           audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -103,6 +117,49 @@
       });
     });
     
+    function drawCD(x, y, size, rotation) {
+      // Disco principal
+      const gradient = ctx.createRadialGradient(x, y, size * 0.3, x, y, size);
+      gradient.addColorStop(0, 'rgba(255, 77, 210, 0.8)');
+      gradient.addColorStop(0.5, 'rgba(255, 77, 210, 0.3)');
+      gradient.addColorStop(1, 'rgba(255, 77, 210, 0.1)');
+      
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rotation);
+      
+      // Disco externo
+      ctx.beginPath();
+      ctx.arc(0, 0, size, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+      
+      // Anel interno
+      ctx.beginPath();
+      ctx.arc(0, 0, size * 0.3, 0, Math.PI * 2);
+      ctx.fillStyle = '#000';
+      ctx.fill();
+      
+      // Linhas de reflexo
+      for (let i = 0; i < 8; i++) {
+        const angle = (Math.PI * 2 / 8) * i;
+        ctx.beginPath();
+        ctx.moveTo(size * 0.35 * Math.cos(angle), size * 0.35 * Math.sin(angle));
+        ctx.lineTo(size * 0.9 * Math.cos(angle), size * 0.9 * Math.sin(angle));
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      
+      // Centro do CD
+      ctx.beginPath();
+      ctx.arc(0, 0, size * 0.1, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      
+      ctx.restore();
+    }
+    
     function render() {
       requestAnimationFrame(render);
       
@@ -111,34 +168,33 @@
       
       const barCount = 10;
       const centerX = canvas.width / 2;
-      const barWidth = Math.min(20, canvas.width / 20);
-      const spacing = barWidth * 0.5;
-      const maxHeight = canvas.height * 0.6;
+      const barWidth = 20;
+      const spacing = 10;
+      const maxHeight = canvas.height * 0.4;
       
-      // Começa das frequências mais baixas (centro) para as mais altas (laterais)
-      const startBin = 2; // Ignora as frequências muito baixas
+      // Desenha as barras do espectro (como no original)
+      const start = Math.floor(dataArray.length / 2) - barCount / 2;
       
       for (let i = 0; i < barCount; i++) {
-        // Posição simétrica (5 barras para cada lado)
-        const pos = i - barCount / 2 + 0.5;
-        const x = centerX + pos * (barWidth + spacing);
-        
-        // Acessa os bins de frequência de forma que as graves fiquem no centro
-        const binIndex = startBin + Math.abs(pos - 0.5) * 2;
-        const value = dataArray[binIndex] || 0;
-        
+        const value = dataArray[start + i];
         const height = (value / 255) * maxHeight;
-        const y = canvas.height / 2 - height / 2;
+        const x = centerX + (i - barCount / 2) * (barWidth + spacing);
         
         ctx.fillStyle = '#ff4dd2';
-        ctx.fillRect(x, y, barWidth, height);
+        ctx.fillRect(x, canvas.height / 2 - height / 2, barWidth, height);
         
-        // Adiciona um brilho sutil
+        // Adiciona brilho
         ctx.shadowBlur = 15;
         ctx.shadowColor = '#ff4dd2';
       }
       
-      // Reseta o shadow para não afetar outros elementos
+      // Atualiza a rotação do CD
+      cdRotation += 0.005;
+      
+      // Desenha o CD central sobre as barras
+      drawCD(centerX, canvas.height / 2, cdSize, cdRotation);
+      
+      // Reseta o shadow
       ctx.shadowBlur = 0;
     }
   </script>
